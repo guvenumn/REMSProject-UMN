@@ -1,47 +1,149 @@
+// Path: frontend/src/app/page.tsx
+import React from "react";
+import { Layout } from "@/components/Layout";
+import { Button } from "@/components/Common/Button";
+import { Input } from "@/components/Common/Input";
+import Link from "next/link";
+
 export default function Home() {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-100">
-      <div className="container mx-auto px-4 py-16">
-        <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-xl overflow-hidden">
-          <div className="bg-blue-600 p-6">
-            <h1 className="text-3xl font-bold text-white">Real Estate Management System by Titans</h1>
-            <p className="text-blue-100 mt-2">Frontend Application</p>
+    <Layout variant="default" transparentHeader>
+      {/* Hero Section */}
+      <section className="relative h-[470px] bg-secondary ">
+        <div className="container mx-auto px-4 py-20 items-center">
+          <div className="flex flex-col items-center justify-center">
+            <h1 className="text-4xl md:text-5xl font-bold mb-6 text-white">
+              Find Your Dream Home
+            </h1>
+            <p className="text-xl text-gray-200 mb-8">
+              Discover the perfect property with our extensive listings
+            </p>
+
+            {/* Search Box */}
+            <div className="bg-white p-5 rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs text-foreground-light">
+                    Location
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="text"
+                      placeholder="Enter location"
+                      className="w-full h-10 px-3 rounded bg-accent text-foreground"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs text-foreground-light">
+                    Property Type
+                  </label>
+                  <div className="mt-1">
+                    <select className="w-full h-10 px-3 rounded bg-accent text-foreground">
+                      <option>Any</option>
+                      <option>House</option>
+                      <option>Apartment</option>
+                      <option>Condo</option>
+                      <option>Land</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs text-foreground-light">
+                    Price Range
+                  </label>
+                  <div className="mt-1 flex">
+                    <select className="w-full h-10 px-3 rounded bg-accent text-foreground">
+                      <option>Any</option>
+                      <option>$100k - $200k</option>
+                      <option>$200k - $300k</option>
+                      <option>$300k - $500k</option>
+                      <option>$500k+</option>
+                    </select>
+                    <Button className="ml-4 w-20">Search</Button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          
-          <div className="p-6">
-            <div className="flex items-center justify-center mb-6">
-              <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <h2 className="text-2xl font-semibold text-gray-800">System Status: Online</h2>
-                <p className="text-gray-600">Next.js application is running successfully</p>
+
+          {/* Featured Categories */}
+          <div className="mt-10 flex flex-wrap gap-4 items-center justify-center">
+            <Button variant="pill" size="pill" className="ml-4 w-30">
+              Houses
+            </Button>
+            <Button variant="pill" size="pill" className="ml-4 w-30">
+              Apartments
+            </Button>
+            <Button variant="pill" size="pill" className="ml-4 w-30">
+              Condos
+            </Button>
+            <Button variant="pill" size="pill" className="ml-4 w-30">
+              Land
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Properties Section */}
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-foreground">
+              Featured Properties
+            </h2>
+            <p className="text-sm text-foreground-light">
+              Handpicked properties for you
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {/* Property Card 1 */}
+            <div className="rounded-lg border border-border overflow-hidden">
+              <div className="h-40 bg-accent-dark"></div>
+              <div className="p-4">
+                <div className="bg-foreground text-white py-1 px-4 rounded inline-block mb-2">
+                  $599,000
+                </div>
+                <div className="text-sm text-foreground">3 beds • 2 baths</div>
+                <div className="text-sm text-foreground-light">
+                  123 Wonder St, City
+                </div>
               </div>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <div className="bg-gray-50 p-4 rounded border border-gray-200">
-                <h3 className="font-medium text-gray-700">Server Information</h3>
-                <p className="text-gray-600 text-sm">Running on Next.js</p>
-                <p className="text-gray-600 text-sm">With TypeScript & Tailwind CSS</p>
-              </div>
-              <div className="bg-gray-50 p-4 rounded border border-gray-200">
-                <h3 className="font-medium text-gray-700">Current Time</h3>
-                <p className="text-gray-600 text-sm">{new Date().toLocaleString()}</p>
+
+            {/* Property Card 2 */}
+            <div className="rounded-lg border border-border overflow-hidden">
+              <div className="h-40 bg-accent-dark"></div>
+              <div className="p-4">
+                <div className="bg-foreground text-white py-1 px-4 rounded inline-block mb-2">
+                  $725,000
+                </div>
+                <div className="text-sm text-foreground">4 beds • 3 baths</div>
+                <div className="text-sm text-foreground-light">
+                  456 Oak Ave, City
+                </div>
               </div>
             </div>
-            
-            <div className="border-t border-gray-200 pt-4">
-              <h3 className="text-lg font-medium text-gray-800 mb-2">Development in progress...</h3>
-              <p className="text-gray-600">
-             
-              </p>
+
+            {/* Property Card 3 */}
+            <div className="rounded-lg border border-border overflow-hidden">
+              <div className="h-40 bg-accent-dark"></div>
+              <div className="p-4">
+                <div className="bg-foreground text-white py-1 px-4 rounded inline-block mb-2">
+                  $849,000
+                </div>
+                <div className="text-sm text-foreground">5 beds • 3 baths</div>
+                <div className="text-sm text-foreground-light">
+                  789 Pine St, City
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </main>
+      </section>
+    </Layout>
   );
 }

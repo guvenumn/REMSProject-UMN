@@ -1,21 +1,55 @@
+/* Path: /frontend/src/app/globals.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Color system as CSS variables */
+  --primary: #4a90e2;
+  --primary-hover: #3a80d2;
+  --secondary: #2c3e50;
+  --secondary-light: #4a5568;
+  --accent: #f5f5f5;
+  --accent-dark: #e0e0e0;
+  --foreground: #333333;
+  --foreground-light: #666666;
+  --border: #e0e0e0;
+  --background: #f5f5f5;
+  --destructive: #ef4444;
+  --success: #10b981;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  /* Apply base styles through Tailwind for consistency */
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+
+  /* Adding basic styles for standard elements */
+  h1 {
+    @apply text-2xl font-bold mb-4;
+  }
+
+  h2 {
+    @apply text-xl font-bold mb-3;
+  }
+
+  h3 {
+    @apply text-lg font-bold mb-2;
+  }
+
+  a {
+    @apply text-[#4a90e2] hover:text-[#3a80d2] transition-colors;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+/* Custom utility classes that extend Tailwind */
+@layer utilities {
+  .transition-default {
+    @apply transition-all duration-300 ease-in-out;
+  }
 }
