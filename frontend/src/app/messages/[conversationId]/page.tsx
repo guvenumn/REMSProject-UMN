@@ -99,15 +99,31 @@ const mockMessages: Record<string, Message[]> = {
       senderId: "user3",
       isCurrentUser: false,
     },
+    {
+      id: "m7",
+      content:
+        "I've sent you all the details via email. Let me know if you need anything else!",
+      timestamp: "Yesterday, 4:15 PM",
+      senderId: "currentUser",
+      isCurrentUser: true,
+    },
   ],
   "4": [
     {
-      id: "m7",
+      id: "m8",
       content:
         "I would like to schedule a viewing for the place on The Garden of Peace.",
       timestamp: "Oct 15, 2:30 PM",
       senderId: "user4",
       isCurrentUser: false,
+    },
+    {
+      id: "m9",
+      content:
+        "I've sent you all the details via email. Let me know if you need anything else!",
+      timestamp: "Feb 27",
+      senderId: "currentUser",
+      isCurrentUser: true,
     },
   ],
 };
@@ -167,9 +183,7 @@ export default function ConversationPage() {
             <MessageThread
               messages={mockMessages[conversationId] || []}
               recipientName={activeConversation.name}
-              propertyTitle={
-                propertyTitles[activeConversation.propertyId || ""]
-              }
+              propertyTitle={propertyTitles[activeConversation.propertyId ?? ""]}
               onSendMessage={handleSendMessage}
             />
           </div>

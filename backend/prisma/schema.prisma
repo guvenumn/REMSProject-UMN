@@ -1,8 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// prisma/schema.prisma
 
 generator client {
   provider = "prisma-client-js"
@@ -11,4 +7,172 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  AGENT
+  ADMIN
+}
+
+enum PropertyStatus {
+  AVAILABLE
+  PENDING
+  SOLD
+  RENTED
+}
+
+enum InquiryStatus {
+  NEW
+  RESPONDED
+  CLOSED
+}
+
+model User {
+  id                    String                  @id @default(uuid())
+  email                 String                  @unique
+  password              String
+  name                  String
+  phone                 String?
+  avatarUrl             String?                 // Add this field if not present
+  active                Boolean  @default(true)  // <-- Added field
+  role                  UserRole                @default(USER)
+  resetToken            String?
+  resetTokenExpiry      DateTime?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+
+  // Relations
+  properties            Property[]
+  sentMessages          Message[]               @relation("MessageSender")
+  savedProperties       SavedProperty[]
+  savedSearches         SavedSearch[]
+  inquiries             PropertyInquiry[]
+  participantIn         ConversationParticipant[]
+
+}
+
+model Property {
+  id                    String                  @id @default(uuid())
+  title                 String
+  description           String
+  price                 Decimal
+  size                  Decimal
+  rooms                 Int
+  bathrooms             Int
+  location              String
+  address               String
+  status                PropertyStatus          @default(AVAILABLE)
+  featured              Boolean                 @default(false)
+  agentId               String
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+
+  // Relations
+  agent                 User                    @relation(fields: [agentId], references: [id])
+  images                PropertyImage[]
+  features              PropertyFeature[]
+  inquiries             PropertyInquiry[]
+  conversations         Conversation[]
+  savedBy               SavedProperty[]
+}
+
+model PropertyImage {
+  id                    String                  @id @default(uuid())
+  propertyId            String
+  url                   String
+  orderIndex            Int
+  createdAt             DateTime                @default(now())
+
+  // Relations
+  property              Property                @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model PropertyFeature {
+  id                    String                  @id @default(uuid())
+  propertyId            String
+  name                  String
+  value                 String?
+
+  // Relations
+  property              Property                @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model SavedProperty {
+  id                    String                  @id @default(uuid())
+  userId                String
+  propertyId            String
+  createdAt             DateTime                @default(now())
+
+  // Relations
+  user                  User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property              Property                @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, propertyId])
+}
+
+model SavedSearch {
+  id                    String                  @id @default(uuid())
+  userId                String
+  filters               Json
+  createdAt             DateTime                @default(now())
+
+  // Relations
+  user                  User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PropertyInquiry {
+  id                    String                  @id @default(uuid())
+  propertyId            String
+  userId                String
+  message               String
+  status                InquiryStatus           @default(NEW)
+  createdAt             DateTime                @default(now())
+  respondedAt           DateTime?
+
+  // Relations
+  property              Property                @relation(fields: [propertyId], references: [id])
+  user                  User                    @relation(fields: [userId], references: [id])
+}
+
+model Conversation {
+  id                    String                  @id @default(uuid())
+  title                 String?
+  propertyId            String?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  isArchived            Boolean                 @default(false)
+
+  // Relations
+  property              Property?               @relation(fields: [propertyId], references: [id])
+  messages              Message[]
+  participants          ConversationParticipant[]
+}
+
+model ConversationParticipant {
+  id                    String                  @id @default(uuid())
+  conversationId        String
+  userId                String
+  isActive              Boolean                 @default(true)
+  lastReadAt            DateTime?
+
+  // Relations
+  conversation          Conversation            @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user                  User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id                    String                  @id @default(uuid())
+  conversationId        String
+  senderId              String
+  content               String
+  isRead                Boolean                 @default(false)
+  sentAt                DateTime                @default(now())
+  readAt                DateTime?
+
+  // Relations
+  conversation          Conversation            @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender                User                    @relation("MessageSender", fields: [senderId], references: [id])
 }

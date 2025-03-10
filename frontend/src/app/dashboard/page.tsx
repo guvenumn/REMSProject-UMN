@@ -23,7 +23,7 @@ export default function Dashboard() {
                 <p className="text-sm text-foreground-light">
                   Total Properties
                 </p>
-                <h3 className="text-2xl font-bold">1,234</h3>
+                <h3 className="text-2xl font-bold">104</h3>
                 <p className="text-sm text-primary">↑ 12% this month</p>
               </div>
             </CardContent>
@@ -33,7 +33,7 @@ export default function Dashboard() {
             <CardContent className="pt-6">
               <div className="space-y-2">
                 <p className="text-sm text-foreground-light">Active Users</p>
-                <h3 className="text-2xl font-bold">5,678</h3>
+                <h3 className="text-2xl font-bold">78</h3>
                 <p className="text-sm text-primary">↑ 8% this month</p>
               </div>
             </CardContent>
