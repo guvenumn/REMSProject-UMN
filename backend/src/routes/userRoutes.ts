@@ -1,6 +1,6 @@
-// file: /var/www/rems/backend/src/routes/userRoutes.ts
+// Path: /var/www/rems/backend/src/routes/userRoutes.ts
 
-import { Router } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { authenticate } from "../middleware/authMiddleware";
 import { userController } from "../controllers/userController";
 import multer from "multer";
@@ -9,6 +9,9 @@ import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
 import config from "../config";
 import { logger } from "../utils/logger";
+
+// No need for a custom interface - Express.Request handles this correctly
+// Multer adds the file property to the request object
 
 const router = Router();
 
@@ -35,7 +38,7 @@ const storage = multer.diskStorage({
 
 // File filter for avatar uploads
 const fileFilter = (
-  req: any,
+  req: Request,
   file: Express.Multer.File,
   cb: multer.FileFilterCallback
 ) => {
@@ -72,19 +75,27 @@ const upload = multer({
  * Get user profile
  * GET /api/user/profile
  */
-router.get("/profile", authenticate, (req, res, next) => {
-  logger.info(`User ${req.userId} requesting profile`);
-  return userController.getUserProfile(req, res, next);
-});
+router.get(
+  "/profile",
+  authenticate,
+  (req: Request, res: Response, next: NextFunction) => {
+    logger.info(`User ${req.userId} requesting profile`);
+    return userController.getUserProfile(req, res, next);
+  }
+);
 
 /**
  * Update user profile
  * PUT /api/user/profile
  */
-router.put("/profile", authenticate, (req, res, next) => {
-  logger.info(`User ${req.userId} updating profile`);
-  return userController.updateUserProfile(req, res, next);
-});
+router.put(
+  "/profile",
+  authenticate,
+  (req: Request, res: Response, next: NextFunction) => {
+    logger.info(`User ${req.userId} updating profile`);
+    return userController.updateUserProfile(req, res, next);
+  }
+);
 
 /**
  * Upload user avatar
@@ -94,9 +105,10 @@ router.post(
   "/avatar",
   authenticate,
   upload.single("avatar"),
-  (req, res, next) => {
+  (req: Request, res: Response, next: NextFunction) => {
+    // TypeScript knows req.file may exist because of multer's type definitions
     logger.info(`User ${req.userId} uploading avatar`);
-    return userController.uploadAvatar(req as any, res, next);
+    return userController.uploadAvatar(req, res, next);
   }
 );
 
@@ -104,47 +116,67 @@ router.post(
  * Get user favorites
  * GET /api/user/favorites
  */
-router.get("/favorites", authenticate, (req, res, next) => {
-  logger.info(`User ${req.userId} requesting favorites`);
-  return userController.getUserFavorites(req, res, next);
-});
+router.get(
+  "/favorites",
+  authenticate,
+  (req: Request, res: Response, next: NextFunction) => {
+    logger.info(`User ${req.userId} requesting favorites`);
+    return userController.getUserFavorites(req, res, next);
+  }
+);
 
 /**
  * Change user password
  * POST /api/user/change-password
  */
-router.post("/change-password", authenticate, (req, res, next) => {
-  logger.info(`User ${req.userId} changing password`);
-  return userController.changePassword(req, res, next);
-});
+router.post(
+  "/change-password",
+  authenticate,
+  (req: Request, res: Response, next: NextFunction) => {
+    logger.info(`User ${req.userId} changing password`);
+    return userController.changePassword(req, res, next);
+  }
+);
 
 /**
  * Get user notifications
  * GET /api/user/notifications
  */
-router.get("/notifications", authenticate, (req, res, next) => {
-  logger.info(`User ${req.userId} requesting notifications`);
-  return userController.getUserNotifications(req, res, next);
-});
+router.get(
+  "/notifications",
+  authenticate,
+  (req: Request, res: Response, next: NextFunction) => {
+    logger.info(`User ${req.userId} requesting notifications`);
+    return userController.getUserNotifications(req, res, next);
+  }
+);
 
 /**
  * Mark notification as read
  * PUT /api/user/notifications/:id
  */
-router.put("/notifications/:id", authenticate, (req, res, next) => {
-  logger.info(
-    `User ${req.userId} marking notification ${req.params.id} as read`
-  );
-  return userController.markNotificationAsRead(req, res, next);
-});
+router.put(
+  "/notifications/:id",
+  authenticate,
+  (req: Request, res: Response, next: NextFunction) => {
+    logger.info(
+      `User ${req.userId} marking notification ${req.params.id} as read`
+    );
+    return userController.markNotificationAsRead(req, res, next);
+  }
+);
 
 /**
  * Delete notification
  * DELETE /api/user/notifications/:id
  */
-router.delete("/notifications/:id", authenticate, (req, res, next) => {
-  logger.info(`User ${req.userId} deleting notification ${req.params.id}`);
-  return userController.deleteNotification(req, res, next);
-});
+router.delete(
+  "/notifications/:id",
+  authenticate,
+  (req: Request, res: Response, next: NextFunction) => {
+    logger.info(`User ${req.userId} deleting notification ${req.params.id}`);
+    return userController.deleteNotification(req, res, next);
+  }
+);
 
 export default router;

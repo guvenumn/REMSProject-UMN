@@ -44,6 +44,20 @@ router.put("/:id", authenticate, requireAdmin, (req, res, next) => {
 });
 
 /**
+ * Toggle user status (enable/disable - admin only)
+ * PUT /api/users/:id/toggle-status
+ */
+router.put(
+  "/:id/toggle-status",
+  authenticate,
+  requireAdmin,
+  (req, res, next) => {
+    logger.info(`Admin toggling status for user ${req.params.id}`);
+    return userController.toggleUserStatus(req, res, next);
+  }
+);
+
+/**
  * Delete user (admin only)
  * DELETE /api/users/:id
  */

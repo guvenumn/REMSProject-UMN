@@ -43,7 +43,7 @@
   }
 
   a {
-    @apply text-[#4a90e2] hover:text-[#3a80d2] transition-colors;
+    @apply text-primary hover:text-primary-hover transition-colors;
   }
 }
 

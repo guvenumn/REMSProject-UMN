@@ -1,11 +1,18 @@
-// Path: /frontend/src/utils/authClient.ts
+// src/utils/authClient.ts
 
 /**
- * Get the stored access token
+ * Get the stored access token (Use this function name to be consistent with the API client)
  */
-export const getAccessToken = (): string | null => {
+export const getAuthToken = (): string | null => {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("token");
+};
+
+/**
+ * Alias for getAuthToken (for backward compatibility)
+ */
+export const getAccessToken = (): string | null => {
+  return getAuthToken();
 };
 
 /**
@@ -23,9 +30,18 @@ export const storeTokens = (
   accessToken: string,
   refreshToken?: string
 ): void => {
-  localStorage.setItem("token", accessToken);
-  if (refreshToken) {
-    localStorage.setItem("refreshToken", refreshToken);
+  if (typeof window === "undefined") return;
+
+  try {
+    localStorage.setItem("token", accessToken);
+    if (refreshToken) {
+      localStorage.setItem("refreshToken", refreshToken);
+    }
+
+    // For debugging purposes
+    console.log("Tokens stored successfully");
+  } catch (error) {
+    console.error("Error storing tokens:", error);
   }
 };
 
@@ -33,8 +49,18 @@ export const storeTokens = (
  * Clear stored tokens
  */
 export const clearTokens = (): void => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("refreshToken");
+  if (typeof window === "undefined") return;
+
+  try {
+    localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
+
+    // For debugging purposes
+    console.log("Tokens cleared successfully");
+  } catch (error) {
+    console.error("Error clearing tokens:", error);
+  }
 };
 
 /**
@@ -160,6 +186,7 @@ export const getCurrentUser = async (): Promise<any> => {
 };
 
 export default {
+  getAuthToken,
   getAccessToken,
   getRefreshToken,
   storeTokens,

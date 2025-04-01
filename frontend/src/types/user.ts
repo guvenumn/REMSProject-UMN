@@ -8,6 +8,7 @@ export interface User {
   phone?: string | null;
   role: UserRole;
   avatarUrl?: string | null;
+  active: boolean; // Added active field
   createdAt: string;
   updatedAt: string;
 }
@@ -27,7 +28,7 @@ export interface LoginData {
 
 export interface ProfileUpdateData {
   name?: string;
-  email?: string; // Added email field
+  email?: string;
   phone?: string | null;
   avatarUrl?: string | null;
 }

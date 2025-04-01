@@ -1,5 +1,4 @@
-// Path: /var/www/rems/backend/src/app.ts
-
+// /var/www/rems/backend/src/app.ts
 import express, {
   Request,
   Response,
@@ -9,47 +8,52 @@ import express, {
 import cors from "cors";
 import helmet from "helmet";
 import path from "path";
+import http from "http";
 import config from "./config";
 import { ApiError } from "./utils/errors";
 import { logger } from "./utils/logger";
 import routes from "./routes/index";
-import { PrismaClient } from "@prisma/client";
-
-// Initialize Prisma
-const prisma = new PrismaClient();
+import { initializeSocketServer } from "./websocket";
+import healthRoutes from "./routes/healthRoutes";
 
 const app = express();
 
 // Port configuration - ensure it's a number
-const portValue = process.env.PORT || (config.app && config.app.port) || 3002;
+const portValue = process.env.PORT || (config.app && config.app.port) || 3001;
 const port =
   typeof portValue === "string" ? parseInt(portValue, 10) : portValue;
 
-// Configure CORS
-const allowedOrigins = [
-  "http://localhost:3000",
-  "http://127.0.0.1:3000",
-  "https://remsproject.com",
-  "https://www.remsproject.com",
-  // Add any other domains that need access
-];
+// Configure CORS - Handle both string and array origins
+const corsOrigin = config.cors?.origin || "*";
+const allowedOrigins = Array.isArray(corsOrigin) 
+  ? corsOrigin 
+  : (corsOrigin === "*" ? "*" : [corsOrigin]);
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps, curl requests)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) === -1) {
-        logger.warn(`CORS blocked request from: ${origin}`);
-        return callback(null, false);
-      }
-      return callback(null, true);
-    },
-    credentials: true,
+// Setup CORS middleware
+if (allowedOrigins === "*") {
+  app.use(cors({
+    origin: "*",
+    credentials: config.cors?.credentials || true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+  }));
+} else {
+  app.use(
+    cors({
+      origin: function (origin, callback) {
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) === -1) {
+          logger.warn(`CORS blocked request from: ${origin}`);
+          return callback(null, false);
+        }
+        return callback(null, true);
+      },
+      credentials: config.cors?.credentials || true,
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    })
+  );
+}
 
 app.use(helmet());
 app.use(express.json());
@@ -64,17 +68,24 @@ try {
 }
 
 // Serve static files from uploads directory
-app.use(
-  "/uploads",
-  express.static(path.join(__dirname, "../uploads"), { maxAge: "1d" })
-);
+const uploadsPath =
+  config.upload?.baseDir || path.join(__dirname, "../uploads");
+app.use("/uploads", express.static(uploadsPath, { maxAge: "1d" }));
 
 // API Routes
 app.use("/api", routes);
 
-// Health check route
-app.get("/health", (req, res) => {
-  res.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
+// Health check routes - Register both at root and under /api for flexibility
+app.use("/health", healthRoutes);
+app.use("/api/health", healthRoutes);
+
+// Legacy health check route for backwards compatibility
+app.get("/health-legacy", (req, res) => {
+  res.status(200).json({
+    status: "OK",
+    timestamp: new Date().toISOString(),
+    environment: config.app?.environment || "development",
+  });
 });
 
 // Error middleware using ErrorRequestHandler type
@@ -98,30 +109,24 @@ const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
 
 app.use(errorHandler);
 
-// Start server - listen on all network interfaces
-const startServer = async () => {
-  try {
-    await prisma.$connect();
-    logger.info('Connected to database');
-    
-    app.listen(port, "0.0.0.0", () => {
-      logger.info(`Server running on port ${port} - http://127.0.0.1:${port}`);
-    });
-  } catch (error) {
-    logger.error('Failed to start server:', error);
-    console.error('Failed to start server:', error);
-    process.exit(1);
-  }
-};
+// Create HTTP server
+const server = http.createServer(app);
 
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  logger.error('Uncaught Exception:', error);
-  console.error('Uncaught Exception:', error);
-  process.exit(1);
+// Initialize Socket.io
+initializeSocketServer(app, server);
+
+// Start server - listen on all network interfaces or config host
+const host = config.app?.host || "0.0.0.0";
+server.listen(port, host, () => {
+  logger.info(
+    `Server running on port ${port} - http://${
+      host === "0.0.0.0" ? "localhost" : host
+    }:${port}`
+  );
+  logger.info(`Environment: ${config.app?.environment || "development"}`);
+  if (config.frontend?.url) {
+    logger.info(`Frontend URL: ${config.frontend.url}`);
+  }
 });
 
-// Start the server
-startServer();
-
-export { app, prisma };
+export default app;

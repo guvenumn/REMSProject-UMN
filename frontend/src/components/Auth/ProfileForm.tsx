@@ -1,6 +1,8 @@
 // Path: /frontend/src/components/Auth/ProfileForm.tsx
 "use client";
 
+import { withSuspense } from "@/utils/withSuspense";
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -77,12 +79,13 @@ const ProfileForm = () => {
       let avatarUrl = data.avatarUrl;
       if (avatarFile) {
         const formData = new FormData();
-        formData.append("image", avatarFile);
+        formData.append("avatar", avatarFile); // IMPORTANT: Use "avatar" to match backend expectation
 
         // Get token from localStorage
         const token = localStorage.getItem("token");
 
-        const response = await fetch("/api/upload", {
+        // Changed the endpoint to match the backend route
+        const response = await fetch("/api/user/avatar", {
           method: "POST",
           headers: {
             // Include the authorization header
@@ -96,7 +99,7 @@ const ProfileForm = () => {
         }
 
         const result = await response.json();
-        avatarUrl = result.file.path;
+        avatarUrl = result.avatarUrl || result.file?.path;
       }
 
       // Update profile with the avatar URL
@@ -196,7 +199,7 @@ const ProfileForm = () => {
         <div className="pt-4">
           <Button
             type="submit"
-            variant="primary"
+            variant="default" // Using a valid variant
             className="w-full"
             disabled={isSubmitting || isLoading}
           >
@@ -208,4 +211,4 @@ const ProfileForm = () => {
   );
 };
 
-export default ProfileForm;
+export default withSuspense(ProfileForm);

@@ -1,0 +1,21 @@
+[Unit]
+Description=REMS Backend API Service
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=rems
+WorkingDirectory=/var/www/rems/backend
+ExecStart=/usr/bin/npm start
+Restart=on-failure
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=rems-backend
+Environment=NODE_ENV=test
+Environment=PORT=3002
+Environment=HOST=localhost
+# Other environment variables will be loaded from .env file
+
+[Install]
+WantedBy=multi-user.target

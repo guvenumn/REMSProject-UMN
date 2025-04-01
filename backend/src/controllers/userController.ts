@@ -9,71 +9,6 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-// Add this to the existing userController object
-const createUser = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    // Check admin permissions (should already be handled by middleware)
-    if (!req.user || req.userRole !== "ADMIN") {
-      throw new ApiError("Admin privileges required", 403);
-    }
-
-    const { name, email, password, role, phone, active } = req.body;
-
-    // Validate required fields
-    if (!name || !email || !password) {
-      throw new ApiError("Name, email and password are required", 400);
-    }
-
-    // Check if user with this email already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
-      throw new ApiError("User with this email already exists", 409);
-    }
-
-    // Hash password
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    // Create new user
-    const newUser = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        role: role || "USER",
-        phone: phone || null,
-        active: active !== undefined ? active : true,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        phone: true,
-        avatarUrl: true,
-        createdAt: true,
-        updatedAt: true,
-        active: true,
-      },
-    });
-
-    logger.info(`Admin created new user: ${newUser.email}`);
-
-    res.status(201).json({
-      success: true,
-      message: "User created successfully",
-      data: newUser,
-    });
-  } catch (error) {
-    logger.error(`Error creating user: ${error}`);
-    next(error);
-  }
-};
-
-// Export with the new function added
 export const userController = {
   getUserProfile: async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -137,15 +72,23 @@ export const userController = {
         throw new ApiError("No image provided", 400);
       }
 
+      logger.info(
+        `Processing avatar upload for user: ${req.userId}, file: ${req.file.filename}`
+      );
+
       // Process avatar using the service
       const result = await userService.processAvatar(req.userId, req.file);
 
-      logger.info(`Uploaded avatar for user: ${req.userId}`);
-
+      // Format the response to match what the frontend expects
       res.status(200).json({
         success: true,
         message: "Avatar uploaded successfully",
-        data: result,
+        file: {
+          originalname: req.file.originalname,
+          filename: req.file.filename,
+          path: result.avatarUrl,
+          size: req.file.size,
+        },
       });
     } catch (error) {
       logger.error(`Error uploading avatar: ${error}`);
@@ -261,6 +204,45 @@ export const userController = {
     }
   },
 
+  // New controller method for toggling user status
+  toggleUserStatus: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // Check admin permissions (should already be handled by middleware)
+      if (!req.user || req.userRole !== "ADMIN") {
+        throw new ApiError("Admin privileges required", 403);
+      }
+
+      const { id } = req.params;
+      const { active } = req.body;
+
+      if (active === undefined) {
+        throw new ApiError("Active status is required", 400);
+      }
+
+      // Prevent admins from disabling their own account
+      if (id === req.userId && active === false) {
+        throw new ApiError("You cannot disable your own account idiot", 400);
+      }
+
+      const updatedUser = await userService.updateUserStatus(id, active);
+
+      logger.info(
+        `Admin ${req.userId} toggled status for user ${id} to ${
+          active ? "active" : "inactive"
+        }`
+      );
+
+      res.status(200).json({
+        success: true,
+        message: `User ${active ? "enabled" : "disabled"} successfully`,
+        data: updatedUser,
+      });
+    } catch (error) {
+      logger.error(`Error toggling user status: ${error}`);
+      next(error);
+    }
+  },
+
   deleteUser: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
@@ -279,7 +261,68 @@ export const userController = {
     }
   },
 
-  createUser, // Add the new function
+  createUser: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // Check admin permissions (should already be handled by middleware)
+      if (!req.user || req.userRole !== "ADMIN") {
+        throw new ApiError("Admin privileges required", 403);
+      }
+
+      const { name, email, password, role, phone, active } = req.body;
+
+      // Validate required fields
+      if (!name || !email || !password) {
+        throw new ApiError("Name, email and password are required", 400);
+      }
+
+      // Check if user with this email already exists
+      const existingUser = await prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (existingUser) {
+        throw new ApiError("User with this email already exists", 409);
+      }
+
+      // Hash password
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+      // Create new user
+      const newUser = await prisma.user.create({
+        data: {
+          name,
+          email,
+          password: hashedPassword,
+          role: role || "USER",
+          phone: phone || null,
+          active: active !== undefined ? active : true,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          phone: true,
+          avatarUrl: true,
+          createdAt: true,
+          updatedAt: true,
+          active: true,
+        },
+      });
+
+      logger.info(`Admin created new user: ${newUser.email}`);
+
+      res.status(201).json({
+        success: true,
+        message: "User created successfully",
+        data: newUser,
+      });
+    } catch (error) {
+      logger.error(`Error creating user: ${error}`);
+      next(error);
+    }
+  },
 
   getUserNotifications: async (
     req: Request,

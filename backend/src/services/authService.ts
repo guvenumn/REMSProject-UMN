@@ -1,8 +1,8 @@
 // src/services/authService.ts
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, UserRole } from "@prisma/client";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
+import jwt, { SignOptions } from "jsonwebtoken";
 import crypto from "crypto";
 import config from "../config";
 import { BadRequestError, AuthError, NotFoundError } from "../utils/errors";
@@ -10,10 +10,30 @@ import { logger } from "../utils/logger";
 
 const prisma = new PrismaClient();
 
+// Export type that matches the interface in auth.d.ts
+export type AuthResult = {
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    role: UserRole;
+    phone: string | null;
+    avatarUrl: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+  token: string;
+};
+
 /**
  * Authenticate a user with email and password
+ * This function is exported through auth.d.ts
  */
-export const authenticate = async (email: string, password: string) => {
+// Using a separate implementation to avoid redeclaration issue
+async function authenticateImpl(
+  email: string,
+  password: string
+): Promise<AuthResult> {
   logger.info(`Authentication attempt for email: ${email}`);
 
   // Find user by email
@@ -53,17 +73,19 @@ export const authenticate = async (email: string, password: string) => {
     },
     token,
   };
-};
+}
 
 /**
  * Register a new user
+ * This function is exported through auth.d.ts
  */
-export const register = async (userData: {
+// Using a separate implementation to avoid redeclaration issue
+async function registerImpl(userData: {
   name: string;
   email: string;
   password: string;
-  role?: string;
-}) => {
+  role?: UserRole;
+}): Promise<AuthResult> {
   logger.info(`Registration attempt for email: ${userData.email}`);
 
   // Check if user already exists
@@ -108,7 +130,7 @@ export const register = async (userData: {
     },
     token,
   };
-};
+}
 
 /**
  * Get user by ID
@@ -143,14 +165,16 @@ export const getUserById = async (userId: string) => {
 /**
  * Generate JWT token
  */
-export const generateToken = (userId: string) => {
+export const generateToken = (userId: string): string => {
   logger.info(`Generating token for user: ${userId}`);
 
-  return jwt.sign({ id: userId }, config.auth.jwtSecret, {
+  // Use type assertion for the options object
+  const options = {
     expiresIn: config.auth.jwtExpiresIn,
-  });
-};
+  } as jwt.SignOptions;
 
+  return jwt.sign({ id: userId }, config.auth.jwtSecret, options);
+};
 /**
  * Verify JWT token
  */
@@ -281,3 +305,10 @@ export const changePassword = async (
 
   return true;
 };
+
+// Assignments for the already declared functions in auth.d.ts
+// These are being declared in the .d.ts file, so we just need to assign implementations
+// @ts-ignore We're deliberately ignoring the redeclaration since it's expected
+export const authenticate = authenticateImpl;
+// @ts-ignore We're deliberately ignoring the redeclaration since it's expected
+export const register = registerImpl;

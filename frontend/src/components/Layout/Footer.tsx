@@ -1,7 +1,7 @@
 // Path: frontend/src/components/Layout/Footer.tsx
-import React from 'react';
-import Link from 'next/link';
-import { cn } from '@/utils/cn';
+import React from "react";
+import Link from "next/link";
+import { cn } from "@/utils/cn";
 
 interface FooterProps {
   className?: string;
@@ -11,9 +11,9 @@ const Footer: React.FC<FooterProps> = ({ className }) => {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className={cn('bg-gray-50 border-t border-gray-200', className)}>
+    <footer className={cn("bg-gray-50 border-t border-gray-200", className)}>
       <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
             <h3 className="text-lg font-semibold mb-4">REMS</h3>
             <p className="text-gray-600 text-sm">
@@ -102,14 +102,11 @@ const Footer: React.FC<FooterProps> = ({ className }) => {
               </li>
             </ul>
           </div>
-        </div>
-        
-        <div className="border-t border-gray-200 mt-8 pt-6 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-gray-600 text-sm">
-            © {currentYear} REMS. All rights reserved.
-          </p>
-          
-        </div>
+        </div> */}
+
+        <p className="text-gray-600 text-sm">
+          © {currentYear} REMS. All rights reserved.
+        </p>
       </div>
     </footer>
   );

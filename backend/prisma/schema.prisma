@@ -34,8 +34,8 @@ model User {
   password              String
   name                  String
   phone                 String?
-  avatarUrl             String?                 // Add this field if not present
-  active                Boolean  @default(true)  // <-- Added field
+  avatarUrl             String?
+  active                Boolean                 @default(true)
   role                  UserRole                @default(USER)
   resetToken            String?
   resetTokenExpiry      DateTime?
@@ -49,7 +49,29 @@ model User {
   savedSearches         SavedSearch[]
   inquiries             PropertyInquiry[]
   participantIn         ConversationParticipant[]
+  priceHistoryEntries   PriceHistory[]          @relation("PriceHistoryCreator")
+}
 
+enum PropertyType {
+  HOUSE
+  TOWNHOUSE
+  CONDO
+  APARTMENT
+}
+
+enum ListingType {
+  SALE
+  RENT
+}
+
+enum PriceChangeReason {
+  INITIAL_LISTING
+  PRICE_REDUCTION
+  PRICE_INCREASE
+  RELISTING
+  APPRAISAL_ADJUSTMENT
+  MARKET_ADJUSTMENT
+  OTHER
 }
 
 model Property {
@@ -64,9 +86,13 @@ model Property {
   address               String
   status                PropertyStatus          @default(AVAILABLE)
   featured              Boolean                 @default(false)
+  propertyType          PropertyType            @default(HOUSE)
+  listingType           ListingType             @default(SALE)
   agentId               String
   createdAt             DateTime                @default(now())
   updatedAt             DateTime                @updatedAt
+  latitude              Float?  //for map integration
+  longitude             Float?  //for map integration
 
   // Relations
   agent                 User                    @relation(fields: [agentId], references: [id])
@@ -75,6 +101,22 @@ model Property {
   inquiries             PropertyInquiry[]
   conversations         Conversation[]
   savedBy               SavedProperty[]
+  priceHistory          PriceHistory[]          @relation("PropertyPriceHistory")
+}
+
+model PriceHistory {
+  id                    String                  @id @default(uuid())
+  propertyId            String
+  price                 Decimal
+  previousPrice         Decimal?
+  date                  DateTime                @default(now())
+  reason                PriceChangeReason       @default(INITIAL_LISTING)
+  notes                 String?
+  createdById           String
+  
+  // Relations
+  property              Property                @relation("PropertyPriceHistory", fields: [propertyId], references: [id], onDelete: Cascade)
+  createdBy             User                    @relation("PriceHistoryCreator", fields: [createdById], references: [id])
 }
 
 model PropertyImage {
@@ -129,10 +171,12 @@ model PropertyInquiry {
   status                InquiryStatus           @default(NEW)
   createdAt             DateTime                @default(now())
   respondedAt           DateTime?
+  conversationId        String?                 // New field to link to a conversation
 
   // Relations
   property              Property                @relation(fields: [propertyId], references: [id])
   user                  User                    @relation(fields: [userId], references: [id])
+  conversation          Conversation?           @relation("InquiryConversation", fields: [conversationId], references: [id])
 }
 
 model Conversation {
@@ -142,11 +186,15 @@ model Conversation {
   createdAt             DateTime                @default(now())
   updatedAt             DateTime                @updatedAt
   isArchived            Boolean                 @default(false)
+  isInquiry             Boolean                 @default(false)       // New field
+  inquiryStatus         InquiryStatus?                                // New field
+  unreadCount           Int                     @default(0)            // New field for tracking unread messages
 
   // Relations
   property              Property?               @relation(fields: [propertyId], references: [id])
   messages              Message[]
   participants          ConversationParticipant[]
+  inquiries             PropertyInquiry[]       @relation("InquiryConversation")
 }
 
 model ConversationParticipant {
@@ -155,6 +203,7 @@ model ConversationParticipant {
   userId                String
   isActive              Boolean                 @default(true)
   lastReadAt            DateTime?
+  unreadCount           Int                     @default(0)            // New field for individual unread count
 
   // Relations
   conversation          Conversation            @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -171,6 +220,7 @@ model Message {
   isRead                Boolean                 @default(false)
   sentAt                DateTime                @default(now())
   readAt                DateTime?
+  isInquiryResponse     Boolean                 @default(false)        // New field to indicate if message is an inquiry response
 
   // Relations
   conversation          Conversation            @relation(fields: [conversationId], references: [id], onDelete: Cascade)

@@ -1,5 +1,6 @@
 // file: /frontend/src/app/(auth)/forgot-password/page.tsx
 import { Metadata } from "next";
+import { Suspense } from "react";
 import ResetPassword from "@/components/Auth/ResetPassword";
 
 export const metadata: Metadata = {
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function ForgotPasswordPage() {
-  return <ResetPassword />;
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ResetPassword />
+    </Suspense>
+  );
 }

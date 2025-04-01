@@ -1,12 +1,4 @@
-// Path: /frontend/src/utils/cn.ts
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+// file /var/www/rems/frontend/src/utils/cn.ts
 
-/**
- * Combines multiple class strings together and handles Tailwind class conflicts
- * @param inputs - Class strings to be merged
- * @returns Merged class string
- */
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+// Re-export cn function from the centralized ui.ts file
+export { cn } from "./ui";

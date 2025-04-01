@@ -4,8 +4,6 @@
 import { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Header } from "@/components/Layout/Header/Header";
-
 
 interface AuthLayoutProps {
   children: ReactNode;
@@ -13,11 +11,6 @@ interface AuthLayoutProps {
 
 const AuthLayout = ({ children }: AuthLayoutProps) => {
   return (
-    <>
-
-    <Header variant="default" />
-    
-
     <div className="flex min-h-screen bg-gray-50">
       {/* Left side - Image/Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-blue-600 flex-col justify-between">
@@ -50,10 +43,6 @@ const AuthLayout = ({ children }: AuthLayoutProps) => {
             className="absolute inset-0 object-cover mix-blend-overlay opacity-20"
           /> */}
         </div>
-
-        <div className="p-12 text-sm text-blue-100">
-          © {new Date().getFullYear()} REMS. All rights reserved.
-        </div>
       </div>
 
       {/* Right side - Auth Forms */}
@@ -68,15 +57,14 @@ const AuthLayout = ({ children }: AuthLayoutProps) => {
                 height={35}
                 className="h-8 w-auto"
               />
-            </Link> */}
-          {/* </div> */}
+            </Link>
+          </div> */}
 
           {/* Auth form content */}
           {children}
         </div>
       </div>
     </div>
-    </>
   );
 };
 

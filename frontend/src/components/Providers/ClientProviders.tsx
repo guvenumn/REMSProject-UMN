@@ -1,22 +1,23 @@
-// src/components/Providers/ClientProviders.tsx
+// file: /var/www/rems/frontend/src/components/Providers/ClientProviders.tsx
+
 "use client";
 
 import React from "react";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { FavoritesProvider } from "@/contexts/FavoritesContext";
-import { Toaster } from "react-hot-toast";
+import { WebSocketProvider } from "@/components/Providers/WebSocketProvider";
 
-export const ClientProviders = ({
-  children,
-}: {
+interface ClientProvidersProps {
   children: React.ReactNode;
+}
+
+export const ClientProviders: React.FC<ClientProvidersProps> = ({
+  children,
 }) => {
   return (
     <AuthProvider>
-      <FavoritesProvider>
-        {children}
-        <Toaster position="top-right" />
-      </FavoritesProvider>
+      <WebSocketProvider>{children}</WebSocketProvider>
     </AuthProvider>
   );
 };
+
+export default ClientProviders;

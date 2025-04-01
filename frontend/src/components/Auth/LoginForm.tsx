@@ -1,8 +1,10 @@
-// Path: /frontend/src/components/Auth/LoginForm.tsx
+// Path: src/components/Auth/LoginForm.tsx||
 "use client";
-import { useState } from "react";
+import { withSuspense } from "@/utils/withSuspense";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -22,13 +24,25 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-const LoginForm = () => {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirectPath = searchParams?.get("redirect") || "/dashboard";
+// Debug flag
+const ENABLE_DEBUG = true;
+const debug = (...args: unknown[]) => {
+  if (ENABLE_DEBUG) {
+    console.log("[LoginForm]", ...args);
+  }
+};
 
+type LoginFormProps = {
+  redirectTo?: string;
+  message?: string;
+};
+
+const LoginForm = ({ redirectTo = "/dashboard", message }: LoginFormProps) => {
+  const router = useRouter();
   const { login, isLoading, isAuthenticated, user } = useAuth();
   const [generalError, setGeneralError] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
+  const [loginAttempted, setLoginAttempted] = useState(false);
 
   // Initialize form with react-hook-form
   const {
@@ -43,33 +57,77 @@ const LoginForm = () => {
     },
   });
 
+  // Set client-side rendering flag
+  useEffect(() => {
+    debug("Component mounted, setting isClient");
+    setIsClient(true);
+  }, []);
+
+  // Log auth state changes
+  useEffect(() => {
+    debug(
+      `Auth state changed - isAuthenticated: ${isAuthenticated}, isLoading: ${isLoading}, user: ${
+        user ? user.email : "null"
+      }`
+    );
+  }, [isAuthenticated, isLoading, user]);
+
+  // Check if already authenticated, redirect if needed
+  useEffect(() => {
+    if (isClient && isAuthenticated && user) {
+      debug(
+        `User already authenticated (${user.email}), redirecting to ${redirectTo}`
+      );
+      router.push(redirectTo);
+    }
+  }, [isAuthenticated, user, router, redirectTo, isClient]);
+
+  // Effect to redirect after successful login
+  useEffect(() => {
+    if (loginAttempted && isAuthenticated && user) {
+      debug(
+        `Login attempt successful (${user.email}), redirecting to ${redirectTo}`
+      );
+      router.push(redirectTo);
+    }
+  }, [loginAttempted, isAuthenticated, user, router, redirectTo]);
+
   // Handle form submission
   const onSubmit = async (data: LoginFormValues) => {
+    debug(`Submitting login form with email: ${data.email}`);
     setGeneralError(null);
+    setLoginAttempted(false);
 
     try {
       const success = await login(data.email, data.password);
 
       if (success) {
+        debug("Login returned success");
         toast.success("Logged in successfully");
-        router.push(redirectPath);
+
+        // Mark login as attempted so we can redirect in the effect
+        setLoginAttempted(true);
       } else {
+        debug("Login returned failure");
         setGeneralError("Login failed. Please check your credentials.");
         toast.error("Login failed");
       }
     } catch (error) {
+      debug("Login threw an error:", error);
+
       if (error instanceof Error) {
         setGeneralError(error.message);
       } else {
         setGeneralError("An error occurred during login. Please try again.");
       }
+
       toast.error("Login failed");
     }
   };
 
-  // If already authenticated, redirect
-  if (isAuthenticated && user) {
-    router.push(redirectPath);
+  // If already authenticated and we're on the client, show loading while redirect happens
+  if (isClient && isAuthenticated && user) {
+    debug("Rendering redirect message");
     return (
       <div className="flex justify-center items-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -78,11 +136,16 @@ const LoginForm = () => {
     );
   }
 
+  debug("Rendering login form");
   return (
     <div>
       <div className="mb-6 text-center">
         <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
-        <p className="text-gray-600 mt-2">Sign in to your account</p>
+        {message ? (
+          <p className="text-gray-600 mt-2">{message}</p>
+        ) : (
+          <p className="text-gray-600 mt-2">Sign in to your account</p>
+        )}
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -172,7 +235,7 @@ const LoginForm = () => {
 
         <div className="text-center mt-6">
           <p className="text-sm text-gray-600">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link
               href="/register"
               className="font-medium text-blue-600 hover:text-blue-500"
@@ -186,4 +249,4 @@ const LoginForm = () => {
   );
 };
 
-export default LoginForm;
+export default withSuspense(LoginForm);

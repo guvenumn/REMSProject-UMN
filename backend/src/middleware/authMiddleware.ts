@@ -6,19 +6,48 @@ import { PrismaClient } from "@prisma/client";
 import config from "../config";
 import { ApiError } from "../utils/errors";
 import { logger } from "../utils/logger";
+import { UserRole } from "../types/user";
 
-const prisma = new PrismaClient();
-
-// Add user property to Request interface
-declare global {
-  namespace Express {
-    interface Request {
-      userId?: string;
-      userRole?: string;
-      user?: any;
-    }
+// Make sure TypeScript knows about our custom properties on Request
+// This is a type-safety check - the actual extension is in express/index.d.ts
+declare module "express" {
+  interface Request {
+    userId?: string;
+    userRole?: UserRole;
+    user?: {
+      id: string;
+      email?: string;
+      name?: string;
+      role?: string;
+      [key: string]: any;
+    };
   }
 }
+
+// Initialize PrismaClient
+let prisma: PrismaClient;
+
+// Handle Prisma initialization
+try {
+  prisma = new PrismaClient();
+} catch (error) {
+  console.error("Failed to initialize Prisma client:", error);
+  // Use a lazy initialization approach
+  prisma = null as unknown as PrismaClient;
+}
+
+// Function to get or initialize prisma client
+const getPrismaClient = () => {
+  if (!prisma) {
+    try {
+      prisma = new PrismaClient();
+    } catch (error) {
+      console.error("Failed to initialize Prisma client:", error);
+      throw new ApiError("Database connection error", 500);
+    }
+  }
+  return prisma;
+};
 
 /**
  * Authenticate middleware
@@ -48,7 +77,7 @@ export const authenticate = async (
     req.userId = decoded.id;
 
     // Get user from database to check if they still exist and get their role
-    const user = await prisma.user.findUnique({
+    const user = await getPrismaClient().user.findUnique({
       where: { id: decoded.id },
       select: {
         id: true,
@@ -64,7 +93,7 @@ export const authenticate = async (
 
     // Set user info in request
     req.user = user;
-    req.userRole = user.role;
+    req.userRole = user.role as UserRole;
     logger.info(`User authenticated: ${user.email}`);
 
     next();

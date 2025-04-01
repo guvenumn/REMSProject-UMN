@@ -12,13 +12,14 @@ export interface SelectOption {
 
 export interface SelectProps
   extends React.SelectHTMLAttributes<HTMLSelectElement> {
-  options: SelectOption[];
+  options?: SelectOption[];
   label?: string;
   error?: string;
+  children?: React.ReactNode;
 }
 
 const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, options, label, error, ...props }, ref) => {
+  ({ className, options = [], label, error, children, ...props }, ref) => {
     return (
       <div className="w-full">
         {label && (
@@ -38,11 +39,13 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           ref={ref}
           {...props}
         >
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
+          {children
+            ? children
+            : options.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
         </select>
         {error && <p className="mt-1 text-sm text-destructive">{error}</p>}
       </div>

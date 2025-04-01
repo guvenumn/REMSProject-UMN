@@ -1,4 +1,4 @@
-// src/contexts/FavoritesContext.tsx
+// File: /var/www/rems/frontend/src/contexts/FavoritesContext.tsx
 "use client";
 
 import React, {
@@ -26,7 +26,8 @@ type FavoritesContextType = {
   addFavorite: (property: FavoriteProperty) => void;
   removeFavorite: (propertyId: string) => void;
   isFavorite: (propertyId: string) => boolean;
-  toggleFavorite: (property: FavoriteProperty) => boolean;
+  toggleFavorite: (property: any) => boolean; // Changed to accept any property type
+  clearFavorites: () => void; // Added function to clear favorites
 };
 
 const defaultContextValue: FavoritesContextType = {
@@ -36,6 +37,7 @@ const defaultContextValue: FavoritesContextType = {
   removeFavorite: () => {},
   isFavorite: () => false,
   toggleFavorite: () => false,
+  clearFavorites: () => {}, // Added default implementation
 };
 
 const FavoritesContext =
@@ -86,6 +88,61 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [favorites, loading, mounted]);
 
+  // Convert any property object to FavoriteProperty type with proper field mapping
+  const convertToFavoriteProperty = (property: any): FavoriteProperty => {
+    return {
+      id: property.id,
+      title: property.title,
+      // Handle price - convert to number if it's a string
+      price:
+        typeof property.price === "string"
+          ? parseFloat(property.price)
+          : property.price,
+      // Map beds field - check for different possible property names
+      beds:
+        property.beds !== undefined
+          ? property.beds
+          : property.bedrooms !== undefined
+          ? property.bedrooms
+          : property.rooms !== undefined
+          ? property.rooms
+          : 0,
+      // Map baths field - check for different possible property names
+      baths:
+        property.baths !== undefined
+          ? property.baths
+          : property.bathrooms !== undefined
+          ? property.bathrooms
+          : 0,
+      // Use location or address
+      location: property.location || property.address || "",
+      // Handle image URL
+      imageUrl:
+        property.imageUrl ||
+        (property.images && property.images.length > 0
+          ? typeof property.images[0] === "object" && property.images[0].url
+            ? property.images[0].url
+            : property.images[0]
+          : undefined),
+      // Normalize status (convert to lowercase if needed)
+      status: property.status
+        ? property.status.toLowerCase &&
+          (property.status.toLowerCase() === "sale" ||
+            property.status.toLowerCase() === "rent")
+          ? (property.status.toLowerCase() as "sale" | "rent")
+          : property.listingType === "SALE"
+          ? "sale"
+          : property.listingType === "RENT"
+          ? "rent"
+          : undefined
+        : property.listingType === "SALE"
+        ? "sale"
+        : property.listingType === "RENT"
+        ? "rent"
+        : undefined,
+    };
+  };
+
   // Add a property to favorites
   const addFavorite = (property: FavoriteProperty) => {
     setFavorites((prevFavorites) => {
@@ -109,13 +166,24 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
     return favorites.some((property) => property.id === propertyId);
   };
 
-  // Toggle a property in favorites
-  const toggleFavorite = (property: FavoriteProperty) => {
-    if (isFavorite(property.id)) {
-      removeFavorite(property.id);
+  // Clear all favorites
+  const clearFavorites = () => {
+    setFavorites([]);
+    if (mounted) {
+      localStorage.removeItem("favorites");
+    }
+  };
+
+  // Toggle a property in favorites - now accepts any property type
+  const toggleFavorite = (property: any) => {
+    // First convert the property to ensure proper field mapping
+    const favoriteProperty = convertToFavoriteProperty(property);
+
+    if (isFavorite(favoriteProperty.id)) {
+      removeFavorite(favoriteProperty.id);
       return false; // Removed from favorites
     } else {
-      addFavorite(property);
+      addFavorite(favoriteProperty);
       return true; // Added to favorites
     }
   };
@@ -127,6 +195,7 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
     removeFavorite,
     isFavorite,
     toggleFavorite,
+    clearFavorites,
   };
 
   return (

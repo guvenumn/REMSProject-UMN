@@ -1,97 +1,124 @@
-// file: /frontend/src/components/Common/Button.tsx
-import { ButtonHTMLAttributes, forwardRef } from "react";
-import { VariantProps, cva } from "class-variance-authority";
-import { cn } from "@/lib/utils";
+"use client";
 
-// Define button variants with class-variance-authority
-const buttonVariants = cva(
-  // Base styles
-  "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none",
-  {
-    variants: {
-      variant: {
-        primary: "bg-blue-600 hover:bg-blue-700 text-white",
-        secondary: "bg-gray-100 hover:bg-gray-200 text-gray-900",
-        outline: "border border-gray-300 hover:bg-gray-50 text-gray-700",
-        ghost: "hover:bg-gray-100 text-gray-700",
-        danger: "bg-red-600 hover:bg-red-700 text-white",
-        link: "text-blue-600 hover:text-blue-700 underline-offset-4 hover:underline p-0",
-      },
-      size: {
-        sm: "h-9 px-3 rounded-md text-xs",
-        md: "h-10 px-4 py-2",
-        lg: "h-12 px-6 py-3 text-base",
-        icon: "h-10 w-10 p-0",
-      },
-      fullWidth: {
-        true: "w-full",
-      },
-    },
-    defaultVariants: {
-      variant: "primary",
-      size: "md",
-      fullWidth: false,
-    },
-  }
-);
+import React from "react";
+import { useTheme } from "@/contexts/ThemeContext";
 
-// Define props interface extending HTML button attributes
-interface ButtonProps
-  extends ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
-  loading?: boolean;
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: "default" | "outline" | "ghost" | "light" | "secondary";
+  size?: "sm" | "default" | "lg";
+  isLoading?: boolean;
+  loading?: boolean; // For QuickSearch compatibility
+  fullWidth?: boolean;
 }
 
-// Create button component with forwardRef for proper typing
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  (
-    {
-      className,
-      variant,
-      size,
-      fullWidth,
-      loading,
-      children,
-      disabled,
-      ...props
-    },
-    ref
-  ) => {
-    return (
-      <button
-        className={cn(buttonVariants({ variant, size, fullWidth, className }))}
-        ref={ref}
-        disabled={disabled || loading}
-        {...props}
-      >
-        {loading ? (
-          <span className="mr-2">
-            <svg
-              className="animate-spin -ml-1 mr-2 h-4 w-4 text-current"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-          </span>
-        ) : null}
-        {children}
-      </button>
-    );
-  }
-);
+export const Button: React.FC<ButtonProps> = ({
+  children,
+  variant = "default",
+  size = "default",
+  isLoading = false,
+  loading, // Accept the loading prop
+  fullWidth = false,
+  className = "",
+  ...props
+}) => {
+  const { theme } = useTheme();
 
-Button.displayName = "Button";
+  // Combine isLoading and loading props
+  const showLoading = isLoading || loading;
+
+  // Base classes
+  const baseClasses =
+    "inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed";
+
+  // Width class
+  const widthClass = fullWidth ? "w-full" : "";
+
+  // Size classes
+  const sizeClasses = {
+    sm: "px-3 py-1.5 text-xs",
+    default: "px-4 py-2 text-sm",
+    lg: "px-6 py-3 text-base",
+  }[size];
+
+  // Variant classes based on theme
+  let variantClasses;
+
+  if (theme === "white") {
+    // Light theme variants
+    variantClasses = {
+      default: "bg-primary text-white hover:bg-primary-dark",
+      outline:
+        "border border-gray-300 bg-transparent text-gray-800 hover:bg-gray-100",
+      ghost: "bg-transparent text-gray-700 hover:bg-gray-100",
+      light: "bg-white text-gray-800 hover:bg-gray-100 border border-gray-300",
+      secondary: "bg-gray-200 text-gray-800 hover:bg-gray-300",
+    }[variant];
+  } else if (theme === "blue") {
+    // Blue theme variants
+    variantClasses = {
+      default: "bg-white text-blue-600 hover:bg-blue-50",
+      outline:
+        "border border-white bg-transparent text-white hover:bg-blue-700",
+      ghost: "bg-transparent text-white hover:bg-blue-700",
+      light: "bg-blue-700 text-white hover:bg-blue-800",
+      secondary: "bg-blue-800 text-white hover:bg-blue-900",
+    }[variant];
+  } else if (theme === "gray") {
+    // Gray theme variants
+    variantClasses = {
+      default: "bg-white text-gray-800 hover:bg-gray-100",
+      outline:
+        "border border-gray-600 bg-transparent text-white hover:bg-gray-700",
+      ghost: "bg-transparent text-white hover:bg-gray-700",
+      light: "bg-gray-700 text-white hover:bg-gray-600",
+      secondary: "bg-gray-600 text-white hover:bg-gray-700",
+    }[variant];
+  } else {
+    // Dark theme variants
+    variantClasses = {
+      default: "bg-gray-700 text-white hover:bg-gray-600",
+      outline:
+        "border border-gray-600 bg-transparent text-white hover:bg-gray-800",
+      ghost: "bg-transparent text-gray-300 hover:bg-gray-800",
+      light: "bg-gray-600 text-white hover:bg-gray-700",
+      secondary: "bg-gray-800 text-white hover:bg-gray-900",
+    }[variant];
+  }
+
+  // Directly use the rest of the props without extra destructuring
+  const buttonProps = props;
+
+  return (
+    <button
+      className={`${baseClasses} ${sizeClasses} ${variantClasses} ${widthClass} ${className}`}
+      disabled={showLoading || props.disabled}
+      {...buttonProps}
+    >
+      {showLoading && (
+        <svg
+          className="w-4 h-4 mr-2 animate-spin"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+          ></circle>
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          ></path>
+        </svg>
+      )}
+      {children}
+    </button>
+  );
+};
+
+export default Button;

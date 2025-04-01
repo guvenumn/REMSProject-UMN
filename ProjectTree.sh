@@ -3,7 +3,7 @@
 # Script to list project structure as a tree, excluding node_modules and other installed components
 
 # Directories to exclude
-EXCLUDE_DIRS="node_modules|.git|.next|dist|build|coverage"
+EXCLUDE_DIRS="node_modules|.git|.next|dist|build|coverage|.jpg|.webp|.zip|.jpeg"
 
 # Function to print the tree structure
 print_tree() {

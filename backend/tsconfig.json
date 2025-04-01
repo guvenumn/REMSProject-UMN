@@ -1,43 +1,35 @@
+/* Backend */
 {
   "compilerOptions": {
     /* Output Directory */
-    "outDir": "./dist" /* Ensures compiled files go to 'dist' */,
-    "rootDir": "./src" /* Ensures TypeScript compiles only files from 'src' */,
+    "outDir": "./dist",
+    "rootDir": "./src",
 
     /* Language and Environment */
-    "target": "ES6" /* Set the JavaScript language version */,
-    "module": "CommonJS" /* Ensures compatibility with Node.js */,
-    "moduleResolution": "node" /* Ensures proper module resolution */,
-    "allowSyntheticDefaultImports": true /* Allows default imports for non-ES modules */,
-    "esModuleInterop": true /* Enables interop for CommonJS modules */,
-    "resolveJsonModule": true /* Allows importing JSON files */,
-    "forceConsistentCasingInFileNames": true /* Enforces consistent casing in filenames */,
+    "target": "ES6",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
 
     /* Type Checking */
-    "strict": true /* Enable strict mode */,
-    "noImplicitAny": true /* Enable error reporting for implicit 'any' */,
-    "strictNullChecks": true /* Enable strict null checks */,
-    "strictFunctionTypes": true /* Ensure function type compatibility */,
-    "strictPropertyInitialization": true /* Check for uninitialized class properties */,
-    "noImplicitReturns": true /* Report functions that do not explicitly return */,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictPropertyInitialization": true,
+    "noImplicitReturns": true,
 
     /* Type Definitions */
-    "typeRoots": [
-      "./node_modules/@types",
-      "./src/types"
-    ] /* Add path to custom type definitions */,
+    "typeRoots": ["./node_modules/@types", "./src/types"],
 
     /* Performance & Build Optimization */
-    "skipLibCheck": true /* Skips type checking for declaration files */,
-    "incremental": true /* Enables incremental builds */,
-    "removeComments": true /* Removes comments in compiled output */
+    "skipLibCheck": true,
+    "incremental": true,
+    "removeComments": true
   },
-  "include": [
-    "src/**/*",
-    "src/types/*.d.ts"
-  ] /* Include type declaration files explicitly */,
-  "exclude": [
-    "node_modules",
-    "dist"
-  ] /* Excludes 'node_modules' and 'dist' from compilation */
+  "include": ["src/**/*", "src/types/**/*.d.ts"],
+  "exclude": ["node_modules", "dist"]
 }

@@ -7,7 +7,9 @@ import React, {
   useState,
   useEffect,
   ReactNode,
+  useCallback,
 } from "react";
+// import { withSuspense } from "@/utils/withSuspense";
 import { useRouter } from "next/navigation";
 
 type User = {
@@ -27,16 +29,34 @@ type AuthContextType = {
   register: (userData: RegisterData) => Promise<boolean>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
-  updateProfile: (data: any) => Promise<void>;
+  updateProfile: (data: ProfileUpdateData) => Promise<void>;
+  // Added methods
+  updatePassword: (
+    currentPassword: string,
+    newPassword: string
+  ) => Promise<void>;
+  resetPassword: (token: string, newPassword: string) => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
 };
 
 type RegisterData = {
   name: string;
   email: string;
   password: string;
+  role?: string;
+  phone?: string;
 };
 
-// Create context with default values to prevent undefined errors
+// define a proper type for profile update data
+type ProfileUpdateData = {
+  name?: string;
+  email?: string;
+  phone?: string;
+  avatarUrl?: string;
+  [key: string]: unknown; // better than 'any' for additional properties
+};
+
+// create context with default values to prevent undefined errors
 const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoading: true,
@@ -46,15 +66,20 @@ const AuthContext = createContext<AuthContextType>({
   logout: async () => {},
   checkAuth: async () => {},
   updateProfile: async () => {},
+  // add default implementations for new methods
+  updatePassword: async () => {},
+  resetPassword: async () => {},
+  forgotPassword: async () => {},
 });
 
 export const useAuth = () => {
   return useContext(AuthContext);
 };
 
-// Debug flag
+// debug flag
 const ENABLE_DEBUG = true;
-const debug = (...args: any[]) => {
+// fefine type for debug arguments (avoid 'any')
+const debug = (...args: unknown[]) => {
   if (ENABLE_DEBUG) {
     console.log("[AuthContext]", ...args);
   }
@@ -67,27 +92,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [mounted, setMounted] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
 
-  // Track client-side mounting to help with hydration
-  useEffect(() => {
-    debug("Component mounted");
-    setMounted(true);
-  }, []);
-
-  // Check if user is authenticated on initial load
-  useEffect(() => {
-    const initAuth = async () => {
-      if (mounted && !authChecked) {
-        debug("Initializing auth check");
-        await checkAuth();
-        setAuthChecked(true);
-      }
-    };
-
-    initAuth();
-  }, [mounted, authChecked]);
-
-  // Helper function to safely access localStorage
-  const safelyGetFromLocalStorage = (key: string) => {
+  // helper function to safely access localStorage
+  const safelyGetFromLocalStorage = useCallback((key: string) => {
     if (typeof window === "undefined") return null;
 
     try {
@@ -98,10 +104,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       debug(`Error accessing localStorage for key: ${key}`, err);
       return null;
     }
-  };
+  }, []);
 
-  // Helper function to safely set localStorage
-  const safelySetToLocalStorage = (key: string, value: string) => {
+  // helper function to safely set localStorage
+  const safelySetToLocalStorage = useCallback((key: string, value: string) => {
     if (typeof window === "undefined") return false;
 
     try {
@@ -112,10 +118,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       debug(`Error setting localStorage for key: ${key}`, err);
       return false;
     }
-  };
+  }, []);
 
-  // Helper function to safely remove from localStorage
-  const safelyRemoveFromLocalStorage = (key: string) => {
+  // helper function to safely remove from localStorage
+  const safelyRemoveFromLocalStorage = useCallback((key: string) => {
     if (typeof window === "undefined") return false;
 
     try {
@@ -126,21 +132,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       debug(`Error removing localStorage for key: ${key}`, err);
       return false;
     }
-  };
+  }, []);
 
-  const checkAuth = async () => {
+  // Hhlper function to get the authentication token
+  const getAuthToken = useCallback(() => {
+    return safelyGetFromLocalStorage("token");
+  }, [safelyGetFromLocalStorage]);
+
+  const checkAuth = useCallback(async () => {
     debug("Starting auth check");
     setIsLoading(true);
     try {
-      // Only access localStorage on the client
+      // only access localStorage on the client
       if (typeof window !== "undefined") {
-        // Check token in localStorage
-        const token = safelyGetFromLocalStorage("token");
+        // check token in localStorage
+        const token = getAuthToken();
         debug("Auth check - token found:", !!token);
 
         if (token) {
           try {
-            // Verify token validity with backend
+            // verify token validity with backend
             debug("Auth check - validating token with API");
             const response = await fetch("/api/auth/me", {
               headers: {
@@ -157,7 +168,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               if (result.data) {
                 debug("Auth check - valid user data returned from API");
                 setUser(result.data);
-                return; // Successfully authenticated
+                return; // successfully authenticated
               } else {
                 debug("Auth check - no user data in response");
               }
@@ -165,7 +176,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               debug("Auth check - API response not OK:", response.status);
             }
 
-            // Token invalid or expired
+            // token invalid or expired
             debug("Auth check - token invalid, clearing auth data");
             safelyRemoveFromLocalStorage("token");
             safelyRemoveFromLocalStorage("user");
@@ -183,7 +194,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       debug("Error checking authentication:", error);
-      // Clear potentially corrupted data
+      // clear potentially corrupted data
       if (typeof window !== "undefined") {
         safelyRemoveFromLocalStorage("token");
         safelyRemoveFromLocalStorage("user");
@@ -193,13 +204,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(false);
       debug("Auth check complete, isAuthenticated:", !!user);
     }
-  };
+  }, [getAuthToken, safelyRemoveFromLocalStorage, user]);
 
-  const login = async (email: string, password: string) => {
-    debug(`Login attempt with email: ${email}`);
+  // trakc client-side mounting to help with hydration
+  useEffect(() => {
+    debug("Component mounted");
+    setMounted(true);
+  }, []);
+
+  // check if user is authenticated on initial load
+  useEffect(() => {
+    const initAuth = async () => {
+      if (mounted && !authChecked) {
+        debug("Initializing auth check");
+        await checkAuth();
+        setAuthChecked(true);
+      }
+    };
+
+    initAuth();
+  }, [mounted, authChecked, checkAuth]); // asdded checkAuth to dependencies
+
+  async function login(email: string, password: string) {
     setIsLoading(true);
+    console.log("[AuthContext] Login attempt with email:", email);
+
     try {
-      // Call the API
+      // msake sure this is using the correct API_BASE_URL
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -218,11 +249,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       debug("Login successful, received data:", data);
 
       if (data.success && data.data) {
-        // Store token
+        // store token
         const tokenStored = safelySetToLocalStorage("token", data.data.token);
         debug("Token stored successfully:", tokenStored);
 
-        // Store user data
+        // store user ID for socket identification
+        safelySetToLocalStorage("userId", data.data.user.id);
+        safelySetToLocalStorage("userName", data.data.user.name);
+        if (data.data.user.avatarUrl) {
+          safelySetToLocalStorage("userAvatar", data.data.user.avatarUrl);
+        }
+
+        // store user data
         if (data.data.user) {
           const userData = data.data.user;
           debug("Setting user state:", userData);
@@ -249,13 +287,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
   const register = async (userData: RegisterData) => {
     debug("Register attempt:", userData.email);
     setIsLoading(true);
     try {
-      // Call my API
+      // Call the API
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -295,8 +333,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     debug("Logout attempt");
     setIsLoading(true);
     try {
-      // Call my API to invalidate token
-      const token = safelyGetFromLocalStorage("token");
+      // call the API to invalidate token
+      const token = getAuthToken();
       if (token) {
         try {
           await fetch("/api/auth/logout", {
@@ -310,12 +348,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
-      // Clear local storage
+      // clea local storage
       safelyRemoveFromLocalStorage("user");
       safelyRemoveFromLocalStorage("token");
+      safelyRemoveFromLocalStorage("userId");
+      safelyRemoveFromLocalStorage("userName");
+      safelyRemoveFromLocalStorage("userAvatar");
       setUser(null);
 
-      // Redirect to home
+      // send to home
       debug("Redirecting to home after logout");
       router.push("/");
     } catch (error) {
@@ -325,20 +366,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // User profile update function
-  const updateProfile = async (data: any) => {
+  // usser profile update function
+  const updateProfile = async (data: ProfileUpdateData) => {
     debug("Profile update requested with data:", data);
     setIsLoading(true);
 
     try {
-      // Get token from localStorage
-      const token = safelyGetFromLocalStorage("token");
+      // geet token from localStorage
+      const token = getAuthToken();
       if (!token) {
         debug("Profile update failed: No authentication token found");
         throw new Error("Authentication required");
       }
 
-      // Call the API to update the profile
+      // call the API to update the profile
       const response = await fetch("/api/user/profile", {
         method: "PUT",
         headers: {
@@ -360,12 +401,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       debug("Profile update successful, received data:", result);
 
       if (result.success && result.data) {
-        // Update user state with the new data
+        // update user state with the new data
         const updatedUser = result.data;
         debug("Setting updated user state:", updatedUser);
         setUser(updatedUser);
 
-        // Also update localStorage
+        // also update localStorage
         const userStored = safelySetToLocalStorage(
           "user",
           JSON.stringify(updatedUser)
@@ -385,6 +426,121 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // New method: Update user password (when logged in)
+  const updatePassword = async (
+    currentPassword: string,
+    newPassword: string
+  ) => {
+    debug("Password update requested");
+    setIsLoading(true);
+
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        debug("Password update failed: No authentication token found");
+        throw new Error("Authentication required");
+      }
+
+      // Changed endpoint to match the backend route
+      const response = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      debug("Password update API response status:", response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        debug("Password update error response:", errorData);
+
+        // Preserve specific error types for the UI to handle
+        if (errorData.message === "incorrect_password") {
+          throw new Error("incorrect_password");
+        }
+
+        throw new Error(errorData.message || "Password update failed");
+      }
+
+      debug("Password updated successfully");
+      return Promise.resolve();
+    } catch (error) {
+      debug("Password update error:", error);
+      return Promise.reject(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // New method: Reset password with token (forgot password flow)
+  const resetPassword = async (token: string, newPassword: string) => {
+    debug("Password reset requested with token");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token, newPassword }),
+      });
+
+      debug("Password reset API response status:", response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        debug("Password reset error response:", errorData);
+        throw new Error(errorData.message || "Failed to reset password");
+      }
+
+      debug("Password reset successful");
+      return Promise.resolve();
+    } catch (error) {
+      debug("Password reset error:", error);
+      return Promise.reject(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // New method: Request password reset email
+  const forgotPassword = async (email: string) => {
+    debug("Forgot password request for email:", email);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      debug("Forgot password API response status:", response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        debug("Forgot password error response:", errorData);
+        throw new Error(
+          errorData.message || "Failed to send reset instructions"
+        );
+      }
+
+      debug("Forgot password request successful");
+      return Promise.resolve();
+    } catch (error) {
+      debug("Forgot password error:", error);
+      return Promise.reject(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const contextValue: AuthContextType = {
     user,
     isLoading,
@@ -394,6 +550,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     logout,
     checkAuth,
     updateProfile,
+    // Added new methods
+    updatePassword,
+    resetPassword,
+    forgotPassword,
   };
 
   debug("Rendering AuthProvider, isAuthenticated:", !!user);

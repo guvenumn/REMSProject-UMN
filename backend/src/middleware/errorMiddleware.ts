@@ -16,11 +16,21 @@ const errorMiddleware = (
 
   // Check if it's our custom error
   if (err instanceof ApiError) {
-    return res.status(err.statusCode).json({
+    const response: {
+      success: false;
+      message: string;
+      errors?: any;
+    } = {
       success: false,
       message: err.message,
-      errors: err.errors,
-    });
+    };
+
+    // Only add errors property if it exists
+    if ("errors" in err && err.errors) {
+      response.errors = err.errors;
+    }
+
+    return res.status(err.statusCode).json(response);
   }
 
   // Handle other errors

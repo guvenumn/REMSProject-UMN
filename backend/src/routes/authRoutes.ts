@@ -1,4 +1,4 @@
-// file: /var/www/rems/backend/src/routes/authRoutes.ts
+// Update /var/www/rems/backend/src/routes/authRoutes.ts
 
 import { Router } from "express";
 import {
@@ -6,6 +6,7 @@ import {
   logout,
   getCurrentUser,
   register,
+  updatePassword,
 } from "../controllers/authController";
 import { authenticate } from "../middleware/authMiddleware";
 import { logger } from "../utils/logger";
@@ -46,6 +47,15 @@ router.post("/logout", (req, res, next) => {
 router.get("/me", authenticate, (req, res, next) => {
   logger.info("Auth me route accessed");
   getCurrentUser(req, res, next);
+});
+
+/**
+ * Update user password
+ * POST /api/auth/change-password
+ */
+router.post("/change-password", authenticate, (req, res, next) => {
+  logger.info("Change password route accessed");
+  updatePassword(req, res, next);
 });
 
 export default router;

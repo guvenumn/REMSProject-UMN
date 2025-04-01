@@ -5,6 +5,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme, getThemeClasses } from "@/contexts/ThemeContext";
 
 type UserMenuProps = {
   user: {
@@ -12,6 +13,7 @@ type UserMenuProps = {
     name: string;
     email: string;
     avatar?: string | null;
+    avatarUrl?: string | null;
   } | null;
 };
 
@@ -21,6 +23,8 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const { logout } = useAuth();
   const router = useRouter();
+  const { theme } = useTheme();
+  const themeClasses = getThemeClasses(theme);
 
   // Handle hydration mismatch
   useEffect(() => {
@@ -49,6 +53,9 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user }) => {
 
   if (!user) return null;
 
+  // Determine avatar source (support both avatar and avatarUrl)
+  const avatarSource = user.avatarUrl || user.avatar;
+
   // Use Tailwind classes instead of inline styles for consistent widths
   return (
     <div className="relative" ref={menuRef}>
@@ -58,22 +65,26 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user }) => {
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-          {mounted && user.avatar ? (
+          {mounted && avatarSource ? (
             <img
-              src={user.avatar}
+              src={avatarSource}
               alt={user.name}
               className="w-full h-full rounded-full object-cover"
             />
           ) : (
-            <span className="text-xs font-semibold text-gray-600">
+            <span
+              className={`text-xs font-semibold ${
+                theme !== "white" ? "text-gray-100" : "text-gray-600"
+              }`}
+            >
               {user.name.charAt(0)}
             </span>
           )}
         </div>
         <svg
-          className={`ml-1 h-5 w-5 text-gray-400 ${
-            isOpen ? "transform rotate-180" : ""
-          }`}
+          className={`ml-1 h-5 w-5 ${
+            theme !== "white" ? "text-gray-300" : "text-gray-400"
+          } ${isOpen ? "transform rotate-180" : ""}`}
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 20 20"
           fill="currentColor"
@@ -88,15 +99,39 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user }) => {
       </button>
 
       {mounted && isOpen && (
-        <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 z-50">
-          <div className="px-4 py-2 border-b">
-            <p className="text-sm font-medium text-gray-900">{user.name}</p>
-            <p className="text-xs text-gray-500 truncate">{user.email}</p>
+        <div
+          className={`origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 ${
+            theme === "dark" ? "bg-gray-800" : "bg-white"
+          } ring-1 ring-black ring-opacity-5 z-50`}
+        >
+          <div
+            className={`px-4 py-2 border-b ${
+              theme !== "white" ? "border-gray-700" : "border-gray-200"
+            }`}
+          >
+            <p
+              className={`text-sm font-medium ${
+                theme !== "white" ? "text-white" : "text-gray-900"
+              }`}
+            >
+              {user.name}
+            </p>
+            <p
+              className={`text-xs ${
+                theme !== "white" ? "text-gray-400" : "text-gray-500"
+              } truncate`}
+            >
+              {user.email}
+            </p>
           </div>
 
           <Link
             href="/dashboard"
-            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            className={`block px-4 py-2 text-sm ${
+              theme !== "white"
+                ? "text-gray-300 hover:bg-gray-700"
+                : "text-gray-700 hover:bg-gray-100"
+            }`}
             onClick={() => setIsOpen(false)}
           >
             Dashboard
@@ -104,7 +139,11 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user }) => {
 
           <Link
             href="/profile"
-            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            className={`block px-4 py-2 text-sm ${
+              theme !== "white"
+                ? "text-gray-300 hover:bg-gray-700"
+                : "text-gray-700 hover:bg-gray-100"
+            }`}
             onClick={() => setIsOpen(false)}
           >
             My Profile
@@ -112,7 +151,11 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user }) => {
 
           <Link
             href="/favorites"
-            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            className={`block px-4 py-2 text-sm ${
+              theme !== "white"
+                ? "text-gray-300 hover:bg-gray-700"
+                : "text-gray-700 hover:bg-gray-100"
+            }`}
             onClick={() => setIsOpen(false)}
           >
             Saved Properties
@@ -120,7 +163,11 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user }) => {
 
           <Link
             href="/messages"
-            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            className={`block px-4 py-2 text-sm ${
+              theme !== "white"
+                ? "text-gray-300 hover:bg-gray-700"
+                : "text-gray-700 hover:bg-gray-100"
+            }`}
             onClick={() => setIsOpen(false)}
           >
             Messages
@@ -128,7 +175,11 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user }) => {
 
           <button
             type="button"
-            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            className={`block w-full text-left px-4 py-2 text-sm ${
+              theme !== "white"
+                ? "text-gray-300 hover:bg-gray-700"
+                : "text-gray-700 hover:bg-gray-100"
+            }`}
             onClick={handleLogout}
           >
             Sign Out
@@ -138,3 +189,5 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user }) => {
     </div>
   );
 };
+
+export default UserMenu;

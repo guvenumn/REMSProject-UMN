@@ -10,7 +10,7 @@ import React, {
 } from "react";
 import { useRouter } from "next/navigation";
 
-// Define User type based on my backend schema
+// Define User type based on the backend schema
 export interface User {
   id: string;
   email: string;

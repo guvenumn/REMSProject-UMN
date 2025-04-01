@@ -267,6 +267,7 @@ export const userService = {
         updatedAt: true,
         avatarUrl: true,
         phone: true,
+        active: true, // Make sure to include the active field
       },
       orderBy: {
         createdAt: "desc",
@@ -284,6 +285,7 @@ export const userService = {
       email?: string;
       role?: "USER" | "AGENT" | "ADMIN";
       phone?: string | null;
+      active?: boolean; // Added active field
     }
   ) => {
     logger.info(`[userService] Admin updating user: ${userId}`);
@@ -321,6 +323,46 @@ export const userService = {
         updatedAt: true,
         avatarUrl: true,
         phone: true,
+        active: true, // Make sure to include the active field
+      },
+    });
+
+    return updatedUser;
+  },
+
+  /**
+   * Update user status (enable/disable - admin only)
+   */
+  updateUserStatus: async (userId: string, active: boolean) => {
+    logger.info(
+      `[userService] Admin toggling user status: ${userId} to ${
+        active ? "active" : "inactive"
+      }`
+    );
+
+    // Check if user exists
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!existingUser) {
+      throw new NotFoundError("User not found");
+    }
+
+    // Update user status
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { active },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+        avatarUrl: true,
+        phone: true,
+        active: true,
       },
     });
 

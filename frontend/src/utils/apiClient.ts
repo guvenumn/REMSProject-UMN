@@ -1,216 +1,295 @@
 // Path: /frontend/src/utils/apiClient.ts
-import { getAccessToken, refreshToken } from "./authClient";
 
-// Change this to match your actual backend URL
-// Using the server IP instead of localhost to avoid CORS issues
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "/api";
+import { getAccessToken } from "./authClient";
+import { getEnvString } from "./env";
 
-interface RequestOptions extends RequestInit {
-  skipAuth?: boolean;
-}
+type ApiRequestData = Record<string, unknown>;
 
-/**
- * Normalize endpoint to avoid duplicate /api prefixes
- * This ensures endpoints work whether they include /api or not
- */
-function normalizeEndpoint(endpoint: string): string {
-  // If it's a full URL, return as is
-  if (endpoint.startsWith("http")) {
-    return endpoint;
+// Get the API URL from environment
+const API_URL = getEnvString("API_URL", "/api");
+
+// Log the API URL being used for debugging
+console.log("API Client initialized with base URL:", API_URL);
+
+// Constants
+const MAX_RETRIES = 2;
+const RETRY_DELAY = 1000; // ms
+
+// Helper sleep function for retry delay
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Helper function to build API path correctly
+const buildPath = (endpoint: string): string => {
+  // Remove /api prefix if it exists (to avoid /api/api)
+  if (endpoint.startsWith("/api/")) {
+    endpoint = endpoint.substring(4);
   }
-
-  // Remove leading slash if present for consistency
-  const cleanEndpoint = endpoint.startsWith("/")
-    ? endpoint.substring(1)
-    : endpoint;
-
-  // Check if endpoint already starts with 'api/'
-  if (cleanEndpoint.startsWith("api/")) {
-    // Remove the 'api/' prefix to avoid duplication
-    return cleanEndpoint.substring(4);
+  // Add leading slash if missing
+  if (!endpoint.startsWith("/")) {
+    endpoint = "/" + endpoint;
   }
+  return endpoint;
+};
 
-  return cleanEndpoint;
-}
-
-/**
- * Generic fetch function with authentication
- */
-export async function fetchWithAuth<T = any>(
-  endpoint: string,
-  options: RequestOptions = {}
-): Promise<T> {
-  const { skipAuth = false, ...fetchOptions } = options;
-
-  // Normalize the endpoint to avoid duplicate /api prefixes
-  const normalizedEndpoint = normalizeEndpoint(endpoint);
-  const url = endpoint.startsWith("http")
-    ? endpoint
-    : `${API_BASE_URL}/${normalizedEndpoint}`;
-
-  // Set up headers
-  const headers = new Headers(fetchOptions.headers);
-
-  if (
-    !headers.has("Content-Type") &&
-    !(fetchOptions.body instanceof FormData)
-  ) {
-    headers.set("Content-Type", "application/json");
-  }
-
-  // Add authentication token if required
-  if (!skipAuth) {
-    try {
-      const token = getAccessToken();
-      if (token) {
-        headers.set("Authorization", `Bearer ${token}`);
-      }
-    } catch (error) {
-      console.error("Failed to get access token:", error);
-    }
-  }
-
-  // Prepare request
-  const request: RequestInit = {
-    ...fetchOptions,
-    headers,
-    // Add credentials to handle cookies properly
-    credentials: "include",
-  };
-
-  // Make request
+// Fetch with retry logic
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  retries = 0
+): Promise<Response> {
   try {
-    let response = await fetch(url, request);
-
-    // Handle token expiration (status 401)
-    if (response.status === 401 && !skipAuth) {
-      try {
-        // Try to refresh the token
-        const refreshed = await refreshToken();
-
-        if (refreshed) {
-          // Get new token and retry the request
-          const newToken = getAccessToken();
-
-          if (newToken) {
-            headers.set("Authorization", `Bearer ${newToken}`);
-            response = await fetch(url, { ...request, headers });
-          }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error: unknown) {
+    if (retries < MAX_RETRIES) {
+      console.log(
+        `API request failed, retrying (${retries + 1}/${MAX_RETRIES})...`,
+        error
+      );
+      await sleep(RETRY_DELAY);
+      return fetchWithRetry(url, options, retries + 1);
+    }
+    if (
+      error instanceof TypeError &&
+      (error.message.includes("fetch failed") ||
+        error.message.includes("Failed to fetch"))
+    ) {
+      console.error("Network error - backend service may be unavailable");
+      if (process.env.NODE_ENV === "development") {
+        console.info(
+          `Please ensure your backend server is running at ${
+            API_URL.split("/api")[0]
+          }`
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Backend service unavailable",
+          message: "Unable to connect to the server. Please try again later.",
+        }),
+        {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
         }
-      } catch (refreshError) {
-        console.error("Failed to refresh token:", refreshError);
-        // Token refresh failed, proceed with original 401 response
-      }
+      );
     }
-
-    // Parse response
-    if (!response.ok) {
-      // Try to get error details from response
-      let errorMessage: string;
-      try {
-        const errorData = await response.json();
-        errorMessage =
-          errorData.message ||
-          errorData.error ||
-          `HTTP Error ${response.status}`;
-      } catch {
-        errorMessage = `HTTP Error ${response.status}`;
-      }
-
-      throw new Error(`API Error: ${errorMessage}`);
-    }
-
-    // Handle no content responses
-    if (response.status === 204) {
-      return {} as T;
-    }
-
-    // Handle different content types
-    const contentType = response.headers.get("content-type");
-
-    if (contentType?.includes("application/json")) {
-      return await response.json();
-    } else if (contentType?.includes("text/")) {
-      const text = await response.text();
-      return { text } as unknown as T;
-    } else {
-      const blob = await response.blob();
-      return { blob } as unknown as T;
-    }
-  } catch (error) {
-    console.error("API request failed:", error);
     throw error;
   }
 }
 
-/**
- * Special function for file uploads
- */
-export async function uploadFile<T = any>(
-  endpoint: string,
-  formData: FormData,
-  options: RequestOptions = {}
-): Promise<T> {
-  // Don't add Content-Type header for FormData
-  // The browser will set it with the correct boundary
-  return fetchWithAuth<T>(endpoint, {
-    method: "POST",
-    body: formData,
-    ...options,
-  });
+// Fetch with auth token
+async function fetchWithAuth(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const token = getAccessToken();
+  const headers = new Headers(options.headers || {});
+  headers.set("Content-Type", "application/json");
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  const requestOptions: RequestInit = { ...options, headers };
+  const response = await fetchWithRetry(url, requestOptions);
+  if (response.status === 401) {
+    console.log("Unauthenticated request - token may be expired");
+    // Implement token refresh logic here if needed
+  }
+  return response;
 }
 
-// Helper functions for common HTTP methods
-export async function get<T = any>(
-  endpoint: string,
-  options: RequestOptions = {}
-): Promise<T> {
-  return fetchWithAuth<T>(endpoint, {
-    method: "GET",
-    ...options,
-  });
+// Process API response
+async function processResponse(response: Response): Promise<unknown> {
+  const contentType = response.headers.get("content-type");
+  const isJson = contentType && contentType.includes("application/json");
+  const data = isJson ? await response.json() : await response.text();
+  console.log(
+    `API Response [${response.status}]:`,
+    isJson ? "JSON Response" : "Text Response",
+    response.url
+  );
+  if (!response.ok) {
+    const error = isJson && data.error ? data.error : response.statusText;
+    const message = isJson && data.message ? data.message : "An error occurred";
+    console.error("API Error Details:", {
+      status: response.status,
+      error,
+      message,
+      url: response.url,
+    });
+    throw { status: response.status, error, message, data: data.data || null };
+  }
+  return data;
 }
 
-export async function post<T = any>(
-  endpoint: string,
-  data: any,
-  options: RequestOptions = {}
-): Promise<T> {
-  return fetchWithAuth<T>(endpoint, {
-    method: "POST",
-    body: JSON.stringify(data),
-    ...options,
-  });
-}
+// Create API client object with methods
+export const api = {
+  async get(endpoint: string, options: RequestInit = {}) {
+    const formattedEndpoint = buildPath(endpoint);
+    const url = `${API_URL}${formattedEndpoint}`;
+    console.log(`[API] GET request to: ${url}`);
+    const response = await fetchWithAuth(url, { method: "GET", ...options });
+    return processResponse(response);
+  },
 
-export async function put<T = any>(
-  endpoint: string,
-  data: any,
-  options: RequestOptions = {}
-): Promise<T> {
-  return fetchWithAuth<T>(endpoint, {
-    method: "PUT",
-    body: JSON.stringify(data),
-    ...options,
-  });
-}
+  async post(
+    endpoint: string,
+    data: ApiRequestData = {},
+    options: RequestInit = {}
+  ) {
+    const formattedEndpoint = buildPath(endpoint);
+    const url = `${API_URL}${formattedEndpoint}`;
+    console.log(`[API] POST request to: ${url}`, data);
+    const response = await fetchWithAuth(url, {
+      method: "POST",
+      body: JSON.stringify(data),
+      ...options,
+    });
+    return processResponse(response);
+  },
 
-export async function del<T = any>(
-  endpoint: string,
-  options: RequestOptions = {}
-): Promise<T> {
-  return fetchWithAuth<T>(endpoint, {
-    method: "DELETE",
-    ...options,
-  });
-}
+  async put(
+    endpoint: string,
+    data: ApiRequestData = {},
+    options: RequestInit = {}
+  ) {
+    const formattedEndpoint = buildPath(endpoint);
+    const url = `${API_URL}${formattedEndpoint}`;
+    console.log(`[API] PUT request to: ${url}`, data);
+    const response = await fetchWithAuth(url, {
+      method: "PUT",
+      body: JSON.stringify(data),
+      ...options,
+    });
+    return processResponse(response);
+  },
 
-export default {
-  fetchWithAuth,
-  uploadFile,
-  get,
-  post,
-  put,
-  del,
+  async patch(
+    endpoint: string,
+    data: ApiRequestData = {},
+    options: RequestInit = {}
+  ) {
+    const formattedEndpoint = buildPath(endpoint);
+    const url = `${API_URL}${formattedEndpoint}`;
+    console.log(`[API] PATCH request to: ${url}`, data);
+    const response = await fetchWithAuth(url, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+      ...options,
+    });
+    return processResponse(response);
+  },
+
+  async delete(endpoint: string, options: RequestInit = {}) {
+    const formattedEndpoint = buildPath(endpoint);
+    const url = `${API_URL}${formattedEndpoint}`;
+    console.log(`[API] DELETE request to: ${url}`);
+    const response = await fetchWithAuth(url, { method: "DELETE", ...options });
+    return processResponse(response);
+  },
+
+  async postFormData(
+    endpoint: string,
+    formData: FormData,
+    options: RequestInit = {}
+  ) {
+    const formattedEndpoint = buildPath(endpoint);
+    const url = `${API_URL}${formattedEndpoint}`;
+    console.log(`[API] POST FormData to: ${url}`);
+    const token = getAccessToken();
+    const headers = new Headers(options.headers || {});
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+    const response = await fetchWithRetry(url, {
+      method: "POST",
+      body: formData,
+      headers,
+      ...options,
+    });
+    return processResponse(response);
+  },
+
+  async testConnection() {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      const response = await fetch(`${API_URL}/health`, {
+        method: "GET",
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      return response.ok;
+    } catch (error) {
+      console.error("Backend connection test failed:", error);
+      return false;
+    }
+  },
+
+  isAuthAvailable() {
+    return typeof getAccessToken === "function";
+  },
 };
+
+// For individual function exports
+export const get = api.get;
+export const post = api.post;
+export const put = api.put;
+export const patch = api.patch;
+export const deleteRequest = api.delete; // Renamed to avoid conflict with 'delete' keyword
+export const postFormData = api.postFormData;
+
+// Add the uploadFile function for file uploads
+export async function uploadFile(
+  file: File,
+  path: string = "/upload",
+  fieldName: string = "file"
+): Promise<{ success: boolean; url?: string; error?: string }> {
+  try {
+    console.log(`[apiClient] Uploading file to ${path}:`, file.name);
+    const formData = new FormData();
+    formData.append(fieldName, file);
+    const formattedPath = buildPath(path);
+    const url = `${API_URL}${formattedPath}`;
+    const token = getAccessToken();
+    const headers = new Headers();
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+    const response = await fetch(url, {
+      method: "POST",
+      body: formData,
+      headers,
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      console.error(`[apiClient] Upload failed (${response.status}):`, data);
+      return {
+        success: false,
+        error: data.message || `Upload failed with status ${response.status}`,
+      };
+    }
+    const fileUrl = data.url || (data.data && data.data.url) || null;
+    if (!fileUrl) {
+      console.warn(
+        "[apiClient] Upload succeeded but no URL in response:",
+        data
+      );
+    }
+    return { success: true, url: fileUrl };
+  } catch (error: unknown) {
+    console.error("[apiClient] Error during file upload:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown upload error",
+    };
+  }
+}
+
+export default api;
